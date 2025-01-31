@@ -222,3 +222,109 @@ spec:
 - **Elastic Stack (ELK) or Loki** for logging.  
 
 ---
+To validate **failover scenarios for a multi-region HashiCorp Vault and Ping Federated ID setup**, you should focus on **high availability (HA), replication, disaster recovery, and authentication failover**. Below are key **test cases**:
+
+---
+
+## **1. Vault Failover & Recovery Tests**
+### ✅ **A. Vault Leader Node Failure**
+🔹 **Steps**:  
+- Identify the active **Vault leader** (`vault operator raft list-peers`).  
+- Shut down the leader node (`systemctl stop vault`).  
+- Verify that a **new leader is elected** in another region (`vault status`).  
+- Check that clients can still authenticate and retrieve secrets.  
+
+🔹 **Expected Outcome**:  
+- Vault should **auto-elect a new leader**.  
+- No downtime in secret retrieval.  
+
+---
+
+### ✅ **B. Vault Cluster Network Partition (Region Isolation)**
+🔹 **Steps**:  
+- Simulate a **network outage** in one region (`iptables DROP`).  
+- Verify that the isolated region transitions to **read-only mode**.  
+- Ensure that applications can **failover to another Vault cluster**.  
+
+🔹 **Expected Outcome**:  
+- Vault in the affected region should **reject writes** but allow reads.  
+- Clients should **automatically switch** to the healthy region.  
+
+---
+
+### ✅ **C. Vault Disaster Recovery (DR) Failover**
+🔹 **Steps**:  
+- Simulate a **full-region failure** (shutdown all Vault nodes).  
+- Activate **Vault DR secondary cluster** (`vault operator raft snapshot restore`).  
+- Redirect applications to use the **DR cluster**.  
+- Validate that all secrets and authentication tokens are available.  
+
+🔹 **Expected Outcome**:  
+- DR cluster becomes the **new active Vault**.  
+- Clients authenticate and access secrets without major disruptions.  
+
+---
+
+## **2. Ping Federated ID Failover Tests**
+### ✅ **A. Identity Provider (IdP) Region Failover**
+🔹 **Steps**:  
+- Shut down the **primary PingFederate node** in Region A.  
+- Ensure that authentication requests are routed to **Region B**.  
+- Test user login via **OIDC/SAML authentication**.  
+
+🔹 **Expected Outcome**:  
+- Users can still log in using the secondary region.  
+- Federation services continue operating without errors.  
+
+---
+
+### ✅ **B. Directory Service Failure (LDAP/AD Down)**
+🔹 **Steps**:  
+- Disable the primary **LDAP/AD instance** in Region A.  
+- Attempt user authentication via **PingFederate**.  
+- Ensure fallback to the **secondary directory service**.  
+
+🔹 **Expected Outcome**:  
+- Authentication works using the secondary directory.  
+- No disruption to user sessions.  
+
+---
+
+### ✅ **C. Token & Session Persistence During Failover**
+🔹 **Steps**:  
+- Initiate a user session in **Region A**.  
+- Failover PingFederate to **Region B**.  
+- Check if the session remains active without forcing re-login.  
+
+🔹 **Expected Outcome**:  
+- Users do not experience forced logouts.  
+- Session cookies and JWT tokens remain valid.  
+
+---
+
+## **3. Load Balancer & API Gateway Failover**
+### ✅ **A. Route 53 / Global Load Balancer Failover**
+🔹 **Steps**:  
+- Manually disable the **primary region endpoint**.  
+- Validate that API Gateway or **PingFederate authentication traffic** reroutes to the backup region.  
+- Test latency-based routing settings.  
+
+🔹 **Expected Outcome**:  
+- Authentication requests are **redirected to the healthy region**.  
+- No increased authentication latency.  
+
+---
+
+### ✅ **B. OAuth/OIDC Token Store Failover**
+🔹 **Steps**:  
+- Force a **database (DynamoDB/PostgreSQL) failure** for token storage.  
+- Ensure tokens are retrieved from the **multi-region database replica**.  
+
+🔹 **Expected Outcome**:  
+- Tokens remain accessible.  
+- New authentication requests do not fail.  
+
+---
+
+## **Next Steps**
+Would you like **Terraform automation scripts** for testing failover scenarios in AWS? 🚀
